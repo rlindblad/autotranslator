@@ -52,30 +52,35 @@ def translate_text(text, source_lang, target_lang):
         )
 
         response = model.prompt(prompt)
-        
+
         # Clean up the response to extract only the translation
         translated_text = response.text().strip()
-        
+
         # Remove common thinking indicators that might appear in the response
         thinking_patterns = [
-            "<think>", "</think>",
-            "Let me translate", "I need to translate", 
-            "Translating from", "Translating to",
+            "<think>",
+            "</think>",
+            "Let me translate",
+            "I need to translate",
+            "Translating from",
+            "Translating to",
             "Here's the translation",
             "The translation is:",
-            "Translation:"
+            "Translation:",
         ]
-        
+
         for pattern in thinking_patterns:
             if pattern.lower() in translated_text.lower():
                 parts = translated_text.lower().split(pattern.lower(), 1)
                 if len(parts) > 1:
-                    translated_text = translated_text[len(parts[0]) + len(pattern):].strip()
-        
+                    translated_text = translated_text[
+                        len(parts[0]) + len(pattern) :
+                    ].strip()
+
         # Remove any explanatory text that might appear after the translation
         if "\n\n" in translated_text:
             translated_text = translated_text.split("\n\n")[0].strip()
-            
+
         return translated_text
     except Exception as e:
         print(f"Error during translation: {e}")
@@ -148,7 +153,11 @@ def translate_column(df, source_col="English", target_lang=None, retranslate=Fal
             continue
 
         # Skip if target already has a translation and retranslate is False
-        if not retranslate and not pd.isna(row[target_lang]) and row[target_lang].strip() != "":
+        if (
+            not retranslate
+            and not pd.isna(row[target_lang])
+            and row[target_lang].strip() != ""
+        ):
             continue
 
         try:
@@ -214,17 +223,23 @@ def translate_all_languages(df, source_col="English", retranslate=False):
 def print_usage():
     """Print usage information for the autotranslator program."""
     print("\nUsage:")
-    print("  python -m autotranslator.main [file_path] [target_language] [sheet_name] [retranslate]")
+    print(
+        "  python -m autotranslator.main [file_path] [target_language] [sheet_name] [retranslate]"
+    )
     print("\nArguments:")
     print("  file_path       - Path to the Excel file (default: localizations.xlsx)")
     print("  target_language - Target language column name or 'all' for all languages")
     print("  sheet_name      - Sheet name in the Excel file (default: Items)")
-    print("  retranslate     - Set to 'retranslate', 'true', 'yes', or '1' to retranslate existing translations")
+    print(
+        "  retranslate     - Set to 'retranslate', 'true', 'yes', or '1' to retranslate existing translations"
+    )
     print("\nExamples:")
     print("  python -m autotranslator.main localizations.xlsx French")
     print("  python -m autotranslator.main localizations.xlsx all Items retranslate")
     print("  python -m autotranslator.main input.xlsx all Sheet1")
-    print("\nNote: The output will be saved to a new file with '_translated' added to the filename.")
+    print(
+        "\nNote: The output will be saved to a new file with '_translated' added to the filename."
+    )
 
 
 def main():
@@ -257,21 +272,32 @@ def main():
         # Check if translation is requested
         if len(sys.argv) > 2:
             target_lang = sys.argv[2]
-            
+
             # Check if retranslation is requested (default is False)
             retranslate = False
-            if len(sys.argv) > 4 and sys.argv[4].lower() in ["retranslate", "true", "yes", "1"]:
+            if len(sys.argv) > 4 and sys.argv[4].lower() in [
+                "retranslate",
+                "true",
+                "yes",
+                "1",
+            ]:
                 retranslate = True
-                print("Retranslation mode: Will retranslate all text entries, including already translated ones.")
+                print(
+                    "Retranslation mode: Will retranslate all text entries, including already translated ones."
+                )
             else:
-                print("Translation mode: Only translating entries that don't have existing translations.")
+                print(
+                    "Translation mode: Only translating entries that don't have existing translations."
+                )
 
             # Translate to all languages if specified
             if target_lang.lower() == "all":
                 translated_df = translate_all_languages(df, "English", retranslate)
             elif target_lang in df.columns:
                 # Translate English to the target language
-                translated_df = translate_column(df, "English", target_lang, retranslate)
+                translated_df = translate_column(
+                    df, "English", target_lang, retranslate
+                )
             else:
                 print(f"Target language '{target_lang}' not found in the columns.")
                 print(
@@ -281,8 +307,12 @@ def main():
                 return
 
             # Create output filename (add "_translated" to the original filename)
-            output_file = os.path.splitext(file_path)[0] + "_translated" + os.path.splitext(file_path)[1]
-            
+            output_file = (
+                os.path.splitext(file_path)[0]
+                + "_translated"
+                + os.path.splitext(file_path)[1]
+            )
+
             # Save the translated data to the new Excel file
             try:
                 print(f"Saving translations to {output_file}...")
