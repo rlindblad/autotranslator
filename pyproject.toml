@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "autotranslator"
+version = "0.1.0"
+description = "A tool for automatic translation"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+    { name = "Riku Lindblad", email = "riku.lindblad@metacoregames.com" },
+]
+dependencies = ["pandas>=2.0.0", "openpyxl>=3.1.0", "llm>=0.12.0"]
+
+[project.scripts]
+autotranslator = "autotranslator.main:main"
+
+[tool.ruff]
+# Enable flake8-bugbear (`B`) rules.
+select = ["E", "F", "B", "I"]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+# Same as Black.
+line-length = 88
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+# Assume Python 3.9
+target-version = "py39"
+
+[tool.ruff.mccabe]
+# Unlike Flake8, default to a complexity level of 10.
+max-complexity = 10
+
+[tool.ruff.isort]
+known-first-party = ["autotranslator"]
+
+[tool.ruff.flake8-quotes]
+docstring-quotes = "double"
+string-quotes = "double"
