@@ -183,7 +183,12 @@ def translate_column(
 
 
 def translate_all_languages(
-    df, source_col="English", retranslate=False, model_name="qwen3"
+    df,
+    source_col="English",
+    retranslate=False,
+    model_name="qwen3",
+    file_path="localizations.xlsx",
+    sheet_name="Items",
 ):
     """
     Translate all rows from the source column to all available language columns.
@@ -193,6 +198,8 @@ def translate_all_languages(
         source_col (str): Name of the source column (default is "English").
         retranslate (bool): Whether to retranslate already translated texts (default is False).
         model_name (str): Name of the LLM model to use for translation.
+        file_path (str): Path to the original Excel file (for output naming).
+        sheet_name (str): Name of the sheet to save translations to.
 
     Returns:
         pd.DataFrame: DataFrame with translations added to all language columns.
@@ -223,13 +230,40 @@ def translate_all_languages(
         f"Found {len(language_columns)} language columns: {', '.join(language_columns)}"
     )
 
-    # Translate to each language
-    for lang_col in language_columns:
+    # Translate to each language and save after each one
+    for i, lang_col in enumerate(language_columns):
+        print(f"Processing language {i+1}/{len(language_columns)}: {lang_col}")
         result_df = translate_column(
             result_df, source_col, lang_col, retranslate, model_name
         )
 
+        # Save intermediate results after each language
+        try:
+            # Create output filename (add "_translated" to the original filename)
+            output_file = get_output_filename(file_path)
+            print(f"Saving intermediate translations to {output_file}...")
+            with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
+                result_df.to_excel(writer, sheet_name=sheet_name, index=False)
+            print(f"Progress saved after completing {lang_col}!")
+        except Exception as e:
+            print(f"Error saving intermediate translations: {e}")
+
     return result_df
+
+
+def get_output_filename(file_path):
+    """
+    Create an output filename by adding "_translated" before the extension.
+
+    Args:
+        file_path (str): Path to the original file.
+
+    Returns:
+        str: Path to the output file.
+    """
+    return (
+        os.path.splitext(file_path)[0] + "_translated" + os.path.splitext(file_path)[1]
+    )
 
 
 def parse_arguments():
@@ -310,7 +344,7 @@ def main():
             # Translate to all languages if specified
             if target_lang.lower() == "all":
                 translated_df = translate_all_languages(
-                    df, source_col, args.retranslate, model_name
+                    df, source_col, args.retranslate, model_name, args.file, args.sheet
                 )
             elif target_lang in df.columns:
                 # Translate source to the target language
