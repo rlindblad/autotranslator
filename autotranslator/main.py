@@ -3,6 +3,7 @@
 
 import os
 import sys
+import argparse
 import pandas as pd
 import llm
 
@@ -31,7 +32,7 @@ def read_localizations(file_path="localizations.xlsx", sheet_name=None):
         return None
 
 
-def translate_text(text, source_lang, target_lang):
+def translate_text(text, source_lang, target_lang, model_name="qwen3"):
     """
     Translate text using an LLM.
 
@@ -39,12 +40,13 @@ def translate_text(text, source_lang, target_lang):
         text (str): Text to translate.
         source_lang (str): Source language code.
         target_lang (str): Target language code.
+        model_name (str): Name of the LLM model to use.
 
     Returns:
         str: Translated text.
     """
     try:
-        model = llm.get_model("qwen3")
+        model = llm.get_model(model_name)
         prompt = (
             f"Translate the following text from {source_lang} to {target_lang}.\n\n"
             f"IMPORTANT: Return ONLY the translation itself, with no explanations, notes, or thinking process.\n\n"
@@ -113,7 +115,9 @@ def get_language_code(language_name):
     return language_map.get(language_name, language_name)
 
 
-def translate_column(df, source_col="English", target_lang=None, retranslate=False):
+def translate_column(
+    df, source_col="English", target_lang=None, retranslate=False, model_name="qwen3"
+):
     """
     Translate all rows from the source column to the target language.
 
@@ -122,6 +126,7 @@ def translate_column(df, source_col="English", target_lang=None, retranslate=Fal
         source_col (str): Name of the source column (default is "English").
         target_lang (str): Target language column name.
         retranslate (bool): Whether to retranslate already translated texts (default is False).
+        model_name (str): Name of the LLM model to use for translation.
 
     Returns:
         pd.DataFrame: DataFrame with the translated text added to the target language column.
@@ -162,7 +167,9 @@ def translate_column(df, source_col="English", target_lang=None, retranslate=Fal
 
         try:
             print(f"Translating [{idx+1}/{len(df)}]: {source_text[:30]}...")
-            translated_text = translate_text(source_text, source_code, target_code)
+            translated_text = translate_text(
+                source_text, source_code, target_code, model_name
+            )
 
             if translated_text:
                 result_df.at[idx, target_lang] = translated_text
@@ -175,7 +182,9 @@ def translate_column(df, source_col="English", target_lang=None, retranslate=Fal
     return result_df
 
 
-def translate_all_languages(df, source_col="English", retranslate=False):
+def translate_all_languages(
+    df, source_col="English", retranslate=False, model_name="qwen3"
+):
     """
     Translate all rows from the source column to all available language columns.
 
@@ -183,6 +192,7 @@ def translate_all_languages(df, source_col="English", retranslate=False):
         df (pd.DataFrame): DataFrame containing the localization data.
         source_col (str): Name of the source column (default is "English").
         retranslate (bool): Whether to retranslate already translated texts (default is False).
+        model_name (str): Name of the LLM model to use for translation.
 
     Returns:
         pd.DataFrame: DataFrame with translations added to all language columns.
@@ -215,53 +225,64 @@ def translate_all_languages(df, source_col="English", retranslate=False):
 
     # Translate to each language
     for lang_col in language_columns:
-        result_df = translate_column(result_df, source_col, lang_col, retranslate)
+        result_df = translate_column(
+            result_df, source_col, lang_col, retranslate, model_name
+        )
 
     return result_df
 
 
-def print_usage():
-    """Print usage information for the autotranslator program."""
-    print("\nUsage:")
-    print(
-        "  python -m autotranslator.main [file_path] [target_language] [sheet_name] [retranslate]"
+def parse_arguments():
+    """Parse command line arguments for the autotranslator program."""
+    parser = argparse.ArgumentParser(
+        description="Automatically translate text in Excel localization files."
     )
-    print("\nArguments:")
-    print("  file_path       - Path to the Excel file (default: localizations.xlsx)")
-    print("  target_language - Target language column name or 'all' for all languages")
-    print("  sheet_name      - Sheet name in the Excel file (default: Items)")
-    print(
-        "  retranslate     - Set to 'retranslate', 'true', 'yes', or '1' to retranslate existing translations"
+    parser.add_argument(
+        "--file",
+        "-f",
+        default="localizations.xlsx",
+        help="Path to the Excel file (default: localizations.xlsx)",
     )
-    print("\nExamples:")
-    print("  python -m autotranslator.main localizations.xlsx French")
-    print("  python -m autotranslator.main localizations.xlsx all Items retranslate")
-    print("  python -m autotranslator.main input.xlsx all Sheet1")
-    print(
-        "\nNote: The output will be saved to a new file with '_translated' added to the filename."
+    parser.add_argument(
+        "--target", "-t", help="Target language column name or 'all' for all languages"
     )
+    parser.add_argument(
+        "--sheet",
+        "-s",
+        default="Items",
+        help="Sheet name in the Excel file (default: Items)",
+    )
+    parser.add_argument(
+        "--retranslate",
+        "-r",
+        action="store_true",
+        help="Retranslate existing translations",
+    )
+    parser.add_argument(
+        "--model",
+        "-m",
+        default="qwen3",
+        help="LLM model to use for translation (default: qwen3)",
+    )
+    parser.add_argument(
+        "--source",
+        "-src",
+        default="English",
+        help="Source language column name (default: English)",
+    )
+
+    return parser.parse_args()
 
 
 def main():
     """Main entry point for the autotranslator program."""
     print("Autotranslator initialized!")
 
-    # Print usage information if no arguments are provided or help is requested
-    if len(sys.argv) <= 1 or sys.argv[1] in ["--help", "-h"]:
-        print_usage()
-        return
-
-    # Get the path to the localizations file
-    file_path = "localizations.xlsx"
-    if len(sys.argv) > 1:
-        file_path = sys.argv[1]
+    # Parse command line arguments
+    args = parse_arguments()
 
     # Read the localizations
-    sheet_name = "Items"  # Default sheet name
-    if len(sys.argv) > 3:
-        sheet_name = sys.argv[3]
-
-    df = read_localizations(file_path, sheet_name)
+    df = read_localizations(args.file, args.sheet)
 
     if df is not None:
         print(f"Columns in the file: {', '.join(df.columns)}")
@@ -270,18 +291,14 @@ def main():
         print(df.head())
 
         # Check if translation is requested
-        if len(sys.argv) > 2:
-            target_lang = sys.argv[2]
+        if args.target:
+            target_lang = args.target
+            model_name = args.model
+            source_col = args.source
 
-            # Check if retranslation is requested (default is False)
-            retranslate = False
-            if len(sys.argv) > 4 and sys.argv[4].lower() in [
-                "retranslate",
-                "true",
-                "yes",
-                "1",
-            ]:
-                retranslate = True
+            print(f"Using LLM model: {model_name}")
+
+            if args.retranslate:
                 print(
                     "Retranslation mode: Will retranslate all text entries, including already translated ones."
                 )
@@ -292,35 +309,42 @@ def main():
 
             # Translate to all languages if specified
             if target_lang.lower() == "all":
-                translated_df = translate_all_languages(df, "English", retranslate)
+                translated_df = translate_all_languages(
+                    df, source_col, args.retranslate, model_name
+                )
             elif target_lang in df.columns:
-                # Translate English to the target language
+                # Translate source to the target language
                 translated_df = translate_column(
-                    df, "English", target_lang, retranslate
+                    df, source_col, target_lang, args.retranslate, model_name
                 )
             else:
                 print(f"Target language '{target_lang}' not found in the columns.")
                 print(
-                    f"Available languages: {[col for col in df.columns if col != 'English' and col in ['French', 'Spanish', 'Russian', 'Korean', 'German', 'Japanese', 'Italian', 'Brazilian Portuguese']]}"
+                    f"Available languages: {[col for col in df.columns if col != source_col and col in ['French', 'Spanish', 'Russian', 'Korean', 'German', 'Japanese', 'Italian', 'Brazilian Portuguese']]}"
                 )
                 print("Use 'all' to translate to all languages.")
                 return
 
             # Create output filename (add "_translated" to the original filename)
             output_file = (
-                os.path.splitext(file_path)[0]
+                os.path.splitext(args.file)[0]
                 + "_translated"
-                + os.path.splitext(file_path)[1]
+                + os.path.splitext(args.file)[1]
             )
 
             # Save the translated data to the new Excel file
             try:
                 print(f"Saving translations to {output_file}...")
                 with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
-                    translated_df.to_excel(writer, sheet_name=sheet_name, index=False)
+                    translated_df.to_excel(writer, sheet_name=args.sheet, index=False)
                 print("Translations saved successfully!")
             except Exception as e:
                 print(f"Error saving translations: {e}")
+        else:
+            print(
+                "No target language specified. Use --target or -t to specify a target language."
+            )
+            print("Use --help for more information on command line options.")
     else:
         print("Failed to read localizations file.")
 
